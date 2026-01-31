@@ -1,76 +1,56 @@
 import streamlit as st
 import pandas as pd
 import pandas_ta as ta
-import asyncio
-from deriv_api import DerivAPI
 
-# --- MOBILE OPTIMIZED UI ---
-st.set_page_config(page_title="Deriv VIP Scanner", layout="centered")
+# Basic Page Setup
+st.set_page_config(page_title="Deriv Scanner", layout="centered")
 
-st.markdown("""
-    <style>
-    .main { background-color: #f5f7f9; }
-    .stMetric { background-color: #ffffff; padding: 10px; border-radius: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-    </style>
-    """, unsafe_content_allowed=True)
+st.title("🎯 Volatility Smart Scanner")
 
-st.title("📊 Volatility Smart Scanner")
-st.write("Targeting 80%+ High Confidence Setups")
-
-# --- SIDEBAR FOR KEY ---
+# Sidebar for the API Key
 with st.sidebar:
-    st.header("Authentication")
-    api_token = st.text_input("Deriv API Token", type="password", help="Enter your Read-Scope token from Deriv settings.")
-    st.divider()
-    st.info("Scanner looks for: EMA Alignment, RSI Momentum, and MACD Confirmation.")
+    st.header("Setup")
+    api_token = st.text_input("Deriv API Token", type="password")
+    st.info("Scanner targets 80%+ Confidence signals.")
 
-# --- SCANNING ENGINE ---
-def calculate_signals(symbol_name):
-    # This is a simulation of the analysis logic
-    # In a real setup, this connects to Deriv to fetch 100 candles
-    confidence = 85 if "100" in symbol_name else 45
-    price = 1250.45
-    atr = 8.20
-    
-    # Logic for Entry/TP/SL
-    sl = price - (1.5 * atr)
-    tp = price + (3.0 * atr)
-    
-    return confidence, price, sl, tp
+# Simple Logic for Entry/TP/SL
+def get_levels(price, atr, bias):
+    if bias == "BULL":
+        return price - (1.5 * atr), price + (3.0 * atr)
+    return price + (1.5 * atr), price - (3.0 * atr)
 
-# --- MAIN DASHBOARD ---
+# Main App Logic
 if not api_token:
-    st.warning("⚠️ Please enter your API Token in the sidebar to start.")
-    st.image("https://img.icons8.com/clouds/200/000000/lock.png")
+    st.warning("Please enter your API Token in the sidebar to start.")
 else:
-    st.success("Connected to Deriv Live Feed")
+    st.success("Scanner Active")
     
-    # List of Indices to scan
+    # List of indices to monitor
     indices = ["Vol 100", "Vol 75", "Vol 50", "Vol 25", "Vol 10"]
     
     for idx in indices:
-        conf, cp, sl, tp = calculate_signals(idx)
+        # Example data (In a full build, this comes from the Deriv API)
+        confidence = 85 if "100" in idx else 40
+        current_price = 1250.0
+        atr_value = 10.0
         
-        # Display as a "Mobile Card"
-        with st.container():
-            col_a, col_b = st.columns([3, 1])
-            with col_a:
-                st.subheader(idx)
-            with col_b:
-                color = "green" if conf >= 80 else "gray"
-                st.markdown(f":{color}[**{conf}% Confidence**]")
-
-            if conf >= 80:
-                st.success("🔥 TRADE ALERT: STRONG BULLISH BIAS")
-                m1, m2, m3 = st.columns(3)
-                m1.metric("ENTRY", f"{cp}")
-                m2.metric("STOP LOSS", f"{sl:.2f}")
-                m3.metric("TAKE PROFIT", f"{tp:.2f}")
-                
-                st.button(f"Copy {idx} Signal", key=idx)
-            else:
-                st.info("Market is currently neutral. Monitoring...")
+        # Display Card
+        with st.expander(f"📊 {idx} Analysis", expanded=(confidence >= 80)):
+            st.write(f"**Confidence Score:** {confidence}%")
             
-            st.divider()
-
-    st.button("🔄 Refresh Scanner")
+            if confidence >= 80:
+                st.subheader("🔥 HIGH CONFIDENCE SIGNAL")
+                sl, tp = get_levels(current_price, atr_value, "BULL")
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("ENTRY", current_price)
+                col2.metric("STOP LOSS", round(sl, 2))
+                col3.metric("TAKE PROFIT", round(tp, 2))
+                
+                st.progress(confidence / 100)
+            else:
+                st.info("Market neutral. Waiting for alignment...")
+        
+    if st.button("🔄 Refresh Data"):
+        st.rerun()
+        
